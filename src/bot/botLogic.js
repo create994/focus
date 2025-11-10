@@ -15,7 +15,8 @@ const COPY = {
     categoryNotFound: 'I could not find events in that category. Try another one.',
     categoryNotRecognized: 'Please specify a supported category (lecture, meeting, workshop, deadline).',
     reminderScheduled: (title, date) => `Reminder scheduled for "${title}" at ${date}.`,
-    help: 'Try commands like "Show my schedule", "Subscribe to category lecture", or "Remind me about next event".'
+    help: 'Try commands like "Show my schedule", "Subscribe to category lecture", or "Remind me about next event".',
+    organizationContext: (name, type) => `Featuring updates from ${name}${type ? ` (${type})` : ''}.`
   },
   ru: {
     greeting: 'Привет! Я помогу вам не забывать о событиях. Выберите действие:',
@@ -27,7 +28,8 @@ const COPY = {
     categoryNotFound: 'Мне не удалось найти события в этой категории. Попробуйте другую.',
     categoryNotRecognized: 'Укажите поддерживаемую категорию (лекция, встреча, воркшоп, дедлайн).',
     reminderScheduled: (title, date) => `Напоминание для «${title}» запланировано на ${date}.`,
-    help: 'Попробуйте команды: «Показать расписание», «Подписаться на категорию лекции», «Напомни о следующем событии».'
+    help: 'Попробуйте команды: «Показать расписание», «Подписаться на категорию лекции», «Напомни о следующем событии».',
+    organizationContext: (name, type) => `Актуальные новости от ${name}${type ? ` (${type})` : ''}.`
   }
 };
 
@@ -156,17 +158,36 @@ const handleShowSchedule = async ({ user, locale, chatId }) => {
   const dictionary = COPY[locale];
 
   if (events.length === 0) {
-    const fallbackEvents = await dataSource.listUpcomingEvents({ organization: config.orgName, limit: 5 });
+    const fallbackEvents = await dataSource.listUpcomingEvents({ limit: 5 });
     const body = fallbackEvents.length
-      ? fallbackEvents.map((event) => `• ${event.title} — ${formatDateTime(event.startTime, locale)}`).join('\n')
+      ? fallbackEvents
+        .map((event) => {
+          const organization = event.Organization?.name || event.organization || config.orgName;
+          return `• ${event.title} — ${formatDateTime(event.startTime, locale)} (${organization})`;
+        })
+        .join('\n')
       : dictionary.noEvents;
 
-    const message = buildStructuredMessage(locale, dictionary.scheduleTitle, [body], dictionary.options);
+    const contextLines = [];
+    if (fallbackEvents.length && fallbackEvents[0].Organization) {
+      contextLines.push(
+        dictionary.organizationContext(
+          fallbackEvents[0].Organization.name,
+          fallbackEvents[0].Organization.type
+        )
+      );
+    }
+
+    const message = buildStructuredMessage(locale, dictionary.scheduleTitle, [...contextLines, body], dictionary.options);
     await sendMessage({ user, chatId, message });
     return;
   }
 
-  const bodyLines = events.map((event) => `${event.title} — ${formatDateTime(event.startTime, locale)} (${event.location || 'Online'})`);
+  const bodyLines = events.map((event) => {
+    const organization = event.Organization?.name || event.organization || config.orgName;
+    const location = event.location || organization || 'Online';
+    return `${event.title} — ${formatDateTime(event.startTime, locale)} (${location})`;
+  });
   const message = buildStructuredMessage(locale, dictionary.scheduleTitle, bodyLines, dictionary.options);
   await sendMessage({ user, chatId, message });
 };
@@ -199,10 +220,18 @@ const handleSubscribeCategory = async ({ user, locale, chatId, text }) => {
   }
 
   const formattedDate = formatDateTime(subscriptions[0].startTime, locale);
+  const organizationName = subscriptions[0].Organization?.name || subscriptions[0].organization || null;
+  const organizationType = subscriptions[0].Organization?.type || null;
+  const contextLines = organizationName ? [dictionary.organizationContext(organizationName, organizationType)] : [];
+
   const message = buildStructuredMessage(
     locale,
     dictionary.scheduleTitle,
-    [dictionary.subscribedToCategory(localizeCategory(normalizedCategory, locale)), dictionary.reminderScheduled(subscriptions[0].title, formattedDate)],
+    [
+      ...contextLines,
+      dictionary.subscribedToCategory(localizeCategory(normalizedCategory, locale)),
+      dictionary.reminderScheduled(subscriptions[0].title, formattedDate)
+    ],
     dictionary.options
   );
   await sendMessage({ user, chatId, message, eventId: subscriptions[0].id });
@@ -221,10 +250,17 @@ const handleRemindNext = async ({ user, locale, chatId }) => {
   await reminders.scheduleImmediateReminder(user, event);
 
   const formattedDate = formatDateTime(event.startTime, locale);
+  const organizationName = event.Organization?.name || event.organization || null;
+  const organizationType = event.Organization?.type || null;
+  const contextLines = organizationName ? [dictionary.organizationContext(organizationName, organizationType)] : [];
   const message = buildStructuredMessage(
     locale,
     dictionary.nextEventTitle,
-    [`${event.title} — ${formattedDate}`, event.location ? `Location: ${event.location}` : ''],
+    [
+      ...contextLines,
+      `${event.title} — ${formattedDate}`,
+      event.location ? `Location: ${event.location}` : ''
+    ].filter(Boolean),
     dictionary.options
   );
   await sendMessage({ user, chatId, message, eventId: event.id });

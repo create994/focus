@@ -3,6 +3,7 @@ const config = require('../utils/config');
 const logger = require('../utils/logger');
 const defineUserModel = require('../models/userModel');
 const defineEventModel = require('../models/eventModel');
+const defineOrganizationModel = require('../models/organizationModel');
 
 const sequelize = new Sequelize(config.dbUrl, {
   logging: config.env === 'production' ? false : (msg) => logger.debug(msg),
@@ -14,6 +15,7 @@ const sequelize = new Sequelize(config.dbUrl, {
 });
 
 const User = defineUserModel(sequelize);
+const Organization = defineOrganizationModel(sequelize);
 const Event = defineEventModel(sequelize);
 
 const Subscription = sequelize.define('Subscription', {
@@ -70,6 +72,9 @@ Subscription.belongsTo(User);
 Event.hasMany(Subscription, { foreignKey: { allowNull: false }, onDelete: 'CASCADE' });
 Subscription.belongsTo(Event);
 
+Organization.hasMany(Event, { foreignKey: { allowNull: true }, onDelete: 'SET NULL' });
+Event.belongsTo(Organization, { foreignKey: { allowNull: true } });
+
 User.hasMany(MessageLog, { foreignKey: { allowNull: true } });
 MessageLog.belongsTo(User);
 
@@ -82,7 +87,10 @@ ReminderPreference.belongsTo(User);
 const initDatabase = async () => {
   try {
     await sequelize.authenticate();
-    await sequelize.sync();
+    const syncOptions = config.env === 'production'
+      ? {}
+      : { alter: true };
+    await sequelize.sync(syncOptions);
     logger.info('Database connection established and models synchronized');
   } catch (error) {
     logger.error('Unable to initialize database', { error: error.message });
@@ -96,6 +104,7 @@ module.exports = {
   models: {
     User,
     Event,
+    Organization,
     Subscription,
     MessageLog,
     ReminderPreference

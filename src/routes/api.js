@@ -8,10 +8,12 @@ const logger = require('../utils/logger');
 
 router.get('/events', async (req, res) => {
   try {
-    const { category, organization, limit } = req.query;
+    const { category, organization, audience, organizationType, limit } = req.query;
     const events = await dataSource.listUpcomingEvents({
       category,
       organization,
+      audience,
+      organizationType,
       limit: limit ? Number(limit) : undefined
     });
 
@@ -83,6 +85,20 @@ router.post('/chat', async (req, res) => {
 router.post('/webhook', async (req, res) => {
   const result = await maxPlatformAdapter.handleIncomingMessage(req.body);
   res.status(result.status || 200).json(result);
+});
+
+router.get('/organizations', async (req, res) => {
+  try {
+    const organizations = await dataSource.listOrganizations();
+    res.json({
+      success: true,
+      count: organizations.length,
+      organizations
+    });
+  } catch (error) {
+    logger.error('Failed to fetch organizations', { error: error.message });
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 module.exports = router;

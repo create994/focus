@@ -56,6 +56,7 @@ Additional optional variables:
 - **API layer (`src/routes/api.js`)** — Express endpoints for events, subscriptions, manual chat commands, and MAX webhooks.
 - **Scheduler (`src/utils/scheduler.js`)** — cron-based job that scans upcoming events and triggers reminders every five minutes.
 - **MAX adapter (`src/bot/maxPlatformAdapter.js`)** — encapsulates outbound/inbound calls with live or mock MAX endpoints.
+- **Organizations (`src/models/organizationModel.js`)** — normalizes partner metadata (type, timezone, locale, contact) so the bot can serve universities, corporations, theatres, hospitals, and future verticals from the same schema.
 
 ## Continuous Deployment (GitHub → MAX)
 
@@ -75,6 +76,12 @@ To activate the workflow, add the following repository secrets in GitHub → Set
 | `MAX_DEPLOY_TOKEN` | Bearer token with publish permissions for the app. |
 
 Once the secrets are configured, any merge to `main` will automatically push the new bundle to MAX and the workflow log will display the API response from the platform.
+
+## Adaptability & Scalability
+
+- **Audience-aware reminders**: events are tagged for `students`, `employees`, `public`, `performers`, `patients`, etc. The chatbot tailors responses with organization context so school cohorts, university departments, and corporate teams all receive meaningful prompts.
+- **Organization registry**: the `/api/organizations` endpoint exposes every onboarded partner (education, corporate, performing-arts, healthcare, community) for easy filtering in web or admin UIs.
+- **Future verticals**: expanding to theatres, hospitals, or civic venues is as simple as seeding new organizations or syncing from an external calendar—the schema already captures metadata, timezones, and per-organization configuration.
 
 ## Compliance
 

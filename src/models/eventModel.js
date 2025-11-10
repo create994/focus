@@ -36,6 +36,11 @@ module.exports = (sequelize) =>
       type: DataTypes.STRING,
       allowNull: true
     },
+    audience: {
+      type: DataTypes.ENUM('students', 'employees', 'public', 'managers', 'performers', 'patients', 'other'),
+      allowNull: false,
+      defaultValue: 'public'
+    },
     source: {
       type: DataTypes.STRING,
       allowNull: true
