@@ -23,6 +23,15 @@ Detailed interaction steps are also captured in [`UX_FLOW.md`](UX_FLOW.md).
 
 > **Note:** The Docker image now installs `python3`, `make`, and `g++` so native dependencies (like `sqlite3`) compile reliably on Alpine. No additional host tooling is required.
 
+## System Requirements
+
+- **Supported platforms:** Linux, macOS, Windows (via Docker Desktop)
+- **Minimum resources (MVP):**
+  - CPU: 1 vCPU (2 vCPU recommended for concurrent reminders)
+  - RAM: 512 MB
+  - Storage: 300 MB (application bundle without multimedia payloads)
+- **Runtime stack:** Node.js 20.x LTS, npm 10.x, Docker 24+ (for container-based deployment)
+
 ## Example `.env`
 
 ```
