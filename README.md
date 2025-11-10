@@ -33,6 +33,8 @@ MAX_WEBHOOK_URL=https://your-ngrok-url/webhook
 USE_MOCK_MAX_API=true
 ORG_NAME=Tech University
 REMINDER_LEAD_MINUTES=30
+REMINDER_OFFSETS_MINUTES=60,30,15
+REMINDER_TOLERANCE_MINUTES=5
 TIMEZONE=Europe/Moscow
 API_TIMEOUT_MS=5000
 ```
@@ -81,6 +83,7 @@ Once the secrets are configured, any merge to `main` will automatically push the
 
 - **Audience-aware reminders**: events are tagged for `students`, `employees`, `public`, `performers`, `patients`, etc. The chatbot tailors responses with organization context so school cohorts, university departments, and corporate teams all receive meaningful prompts.
 - **Organization registry**: the `/api/organizations` endpoint exposes every onboarded partner (education, corporate, performing-arts, healthcare, community) for easy filtering in web or admin UIs.
+- **Staggered reminders**: by default, MAX sends reminders 60, 30, and 15 minutes before each event (configurable via `REMINDER_OFFSETS_MINUTES`) with a tolerance window to prevent duplicate pings.
 - **Future verticals**: expanding to theatres, hospitals, or civic venues is as simple as seeding new organizations or syncing from an external calendar—the schema already captures metadata, timezones, and per-organization configuration.
 
 ## Compliance

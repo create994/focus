@@ -4,6 +4,13 @@ const { models } = require('../db/database');
 const maxPlatformAdapter = require('./maxPlatformAdapter');
 const dataSource = require('./dataSource');
 
+const offsetsConfig = () => {
+  if (Array.isArray(config.reminderOffsetsMinutes) && config.reminderOffsetsMinutes.length > 0) {
+    return config.reminderOffsetsMinutes;
+  }
+  return [config.reminderLeadMinutes].filter(Boolean);
+};
+
 const buildReminderMessage = (userLocale, event, minutesLeft) => {
   const locale = userLocale === 'ru' ? 'ru' : 'en';
   const title = locale === 'ru' ? 'Напоминание о событии' : 'Event reminder';
@@ -35,6 +42,17 @@ const buildReminderMessage = (userLocale, event, minutesLeft) => {
   };
 };
 
+const selectOrganizationContext = (event) => {
+  if (!event || !event.Organization) {
+    return {};
+  }
+
+  return {
+    organizationName: event.Organization.name,
+    organizationType: event.Organization.type
+  };
+};
+
 const sendReminder = async ({ user, event, minutesLeft }) => {
   if (!user.maxChatId) {
     logger.warn('Skipping reminder because chatId is missing', { userId: user.id, eventId: event.id });
@@ -58,11 +76,19 @@ const sendReminder = async ({ user, event, minutesLeft }) => {
 
 const dispatchUpcomingReminders = async (referenceDate = new Date()) => {
   const windowStart = referenceDate;
-  const windowEnd = new Date(referenceDate.getTime() + config.reminderLeadMinutes * 60 * 1000);
+  const maxOffset = Math.max(config.reminderLeadMinutes, offsetsConfig()[0] || 0);
+  const windowEnd = new Date(referenceDate.getTime() + maxOffset * 60 * 1000);
+  const offsets = offsetsConfig();
 
   const subscriptions = await models.Subscription.findAll({
     where: { status: 'accepted' },
-    include: [models.User, models.Event]
+    include: [
+      models.User,
+      {
+        model: models.Event,
+        include: [models.Organization]
+      }
+    ]
   });
 
   const remindersToSend = subscriptions.filter(({ Event: event, lastReminderAt }) => {
@@ -80,18 +106,37 @@ const dispatchUpcomingReminders = async (referenceDate = new Date()) => {
       Math.round((new Date(event.startTime) - referenceDate) / (60 * 1000))
     );
 
+    const nextOffset = offsets.find((offset) => {
+      const alreadySentHigherOffset =
+        typeof subscription.lastReminderOffset === 'number' && offset >= subscription.lastReminderOffset;
+      const withinWindow =
+        minutesLeft <= offset && minutesLeft >= Math.max(offset - config.reminderToleranceMinutes, 0);
+      return withinWindow && !alreadySentHigherOffset;
+    });
+
+    if (!nextOffset) {
+      continue;
+    }
+
     try {
-      await sendReminder({ user, event, minutesLeft });
+      await sendReminder({ user, event, minutesLeft: nextOffset });
       subscription.lastReminderAt = new Date();
+      subscription.lastReminderOffset = nextOffset;
       await subscription.save();
-      logger.info('Reminder dispatched', { userId: user.id, eventId: event.id, minutesLeft });
+      const context = selectOrganizationContext(event);
+      logger.info('Reminder dispatched', {
+        userId: user.id,
+        eventId: event.id,
+        minutesLeft: nextOffset,
+        ...context
+      });
     } catch (error) {
       logger.error('Failed to dispatch reminder', { error: error.message, userId: user.id, eventId: event.id });
       await dataSource.recordMessageLog({
         userId: user.id,
         eventId: event.id,
         direction: 'outgoing',
-        payload: { reminder: true },
+        payload: { reminder: true, offset: nextOffset },
         statusCode: error.response?.status || 500,
         error: error.message
       });

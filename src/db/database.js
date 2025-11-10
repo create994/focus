@@ -31,6 +31,10 @@ const Subscription = sequelize.define('Subscription', {
   lastReminderAt: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  lastReminderOffset: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   }
 });
 
@@ -90,7 +94,18 @@ const initDatabase = async () => {
     const syncOptions = config.env === 'production'
       ? {}
       : { alter: true };
-    await sequelize.sync(syncOptions);
+    try {
+      await sequelize.sync(syncOptions);
+    } catch (syncError) {
+      if (config.env !== 'production') {
+        logger.warn('Schema alter failed, forcing SQLite resync (data will be reset in non-production)', {
+          error: syncError.message
+        });
+        await sequelize.sync({ force: true });
+      } else {
+        throw syncError;
+      }
+    }
     logger.info('Database connection established and models synchronized');
   } catch (error) {
     logger.error('Unable to initialize database', { error: error.message });

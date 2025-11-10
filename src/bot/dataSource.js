@@ -299,7 +299,12 @@ const getEventsForUser = async (userId) => {
       UserId: userId,
       status: 'accepted'
     },
-    include: [models.Event],
+    include: [
+      {
+        model: models.Event,
+        include: [models.Organization]
+      }
+    ],
     order: [[models.Event, 'startTime', 'ASC']]
   });
 
@@ -312,7 +317,12 @@ const getNextEventForUser = async (userId) => {
       UserId: userId,
       status: 'accepted'
     },
-    include: [models.Event],
+    include: [
+      {
+        model: models.Event,
+        include: [models.Organization]
+      }
+    ],
     order: [[models.Event, 'startTime', 'ASC']],
     limit: 1
   });
@@ -334,6 +344,7 @@ const subscribeUserToEvent = async (userId, eventId) => {
   });
 
   subscription.status = 'accepted';
+  subscription.lastReminderOffset = null;
   await subscription.save();
 
   return event;
