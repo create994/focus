@@ -1,0 +1,21 @@
+{
+  "env": {
+    "es2023": true,
+    "node": true,
+    "jest": false
+  },
+  "extends": [
+    "standard"
+  ],
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "script"
+  },
+  "rules": {
+    "no-console": "off",
+    "semi": ["error", "always"],
+    "no-multiple-empty-lines": ["error", { "max": 2, "maxEOF": 1 }],
+    "padded-blocks": "off"
+  }
+}
+

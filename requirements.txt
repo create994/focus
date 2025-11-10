@@ -1,0 +1,9 @@
+express                 # HTTP server and routing
+node-cron               # Task scheduling
+sequelize / sqlite3     # Database ORM
+dotenv                  # Load environment variables
+axios                   # Integrate with MAX API
+cors                    # Allow CORS
+body-parser             # Parse incoming requests
+nodemon (dev)           # Auto-restart for development
+
