@@ -55,6 +55,25 @@ Additional optional variables:
 - **Scheduler (`src/utils/scheduler.js`)** — cron-based job that scans upcoming events and triggers reminders every five minutes.
 - **MAX adapter (`src/bot/maxPlatformAdapter.js`)** — encapsulates outbound/inbound calls with live or mock MAX endpoints.
 
+## Continuous Deployment (GitHub → MAX)
+
+The repository ships with `.github/workflows/deploy.yml`, which:
+
+1. Runs on every push to `main` (or manually from the Actions tab).
+2. Installs dependencies, executes linting (`npm run lint`), and the mock demo test (`npm test`).
+3. Builds the Docker image to ensure the container starts cleanly.
+4. Packages the artefacts into `deployment_bundle.tar.gz` and POSTs it to the MAX deployment endpoint.
+
+To activate the workflow, add the following repository secrets in GitHub → Settings → Secrets and variables → Actions:
+
+| Secret | Description |
+| --- | --- |
+| `MAX_DEPLOY_URL` | HTTPS endpoint provided by MAX for automated deployments. |
+| `MAX_APP_ID` | The application identifier from the MAX developer console. |
+| `MAX_DEPLOY_TOKEN` | Bearer token with publish permissions for the app. |
+
+Once the secrets are configured, any merge to `main` will automatically push the new bundle to MAX and the workflow log will display the API response from the platform.
+
 ## Compliance
 
 The project follows the [MAX developer rules](https://dev.max.ru/docs/legal/rules): credentials are loaded through environment variables, outbound requests validate HTTP responses, and GDPR-friendly logging avoids storing sensitive content.

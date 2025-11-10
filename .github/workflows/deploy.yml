@@ -1,0 +1,74 @@
+name: Deploy to MAX
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint sources
+        run: npm run lint
+
+      - name: Run demo tests
+        run: npm test
+
+      - name: Build Docker image
+        run: docker build -t max-productivity-bot:latest .
+
+      - name: Create deployment bundle
+        run: |
+          tar -czf deployment_bundle.tar.gz \
+            Dockerfile \
+            docker-compose.yml \
+            package.json \
+            package-lock.json \
+            requirements.txt \
+            src \
+            UX_FLOW.md \
+            README.md
+
+      - name: Trigger MAX deployment
+        env:
+          MAX_DEPLOY_URL: ${{ secrets.MAX_DEPLOY_URL }}
+          MAX_APP_ID: ${{ secrets.MAX_APP_ID }}
+          MAX_DEPLOY_TOKEN: ${{ secrets.MAX_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$MAX_DEPLOY_URL" ] || [ -z "$MAX_APP_ID" ] || [ -z "$MAX_DEPLOY_TOKEN" ]; then
+            echo "::error::Missing MAX deployment secrets (MAX_DEPLOY_URL, MAX_APP_ID, MAX_DEPLOY_TOKEN)"
+            exit 1
+          fi
+
+          echo "Calling MAX deployment endpoint at $MAX_DEPLOY_URL"
+          response=$(
+            curl --fail --silent --show-error \
+              -X POST "$MAX_DEPLOY_URL" \
+              -H "Authorization: Bearer $MAX_DEPLOY_TOKEN" \
+              -H "Content-Type: multipart/form-data" \
+              -F "appId=$MAX_APP_ID" \
+              -F "commit=$GITHUB_SHA" \
+              -F "branch=${GITHUB_REF##*/}" \
+              -F "bundle=@deployment_bundle.tar.gz"
+          )
+
+          echo "MAX response: $response"
+
