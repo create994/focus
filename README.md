@@ -21,6 +21,8 @@ Detailed interaction steps are also captured in [`UX_FLOW.md`](UX_FLOW.md).
 - Docker build and run: `docker compose up --build`
 - Access the HTTP API via: [http://localhost:3000](http://localhost:3000)
 
+> **Note:** The Docker image now installs `python3`, `make`, and `g++` so native dependencies (like `sqlite3`) compile reliably on Alpine. No additional host tooling is required.
+
 ## Example `.env`
 
 ```
